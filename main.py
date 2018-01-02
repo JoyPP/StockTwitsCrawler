@@ -6,12 +6,15 @@ import cPickle
 from openpyxl.reader.excel import load_workbook
 from openpyxl.workbook import Workbook
 import os
+import re
+import argparse
 
 def save_message(symbol, messages):
     if not os.path.exists('messages/'):
         os.mkdir('messages/')
     filename = 'messages/' + symbol + '.xlsx'
     print 'save content into', filename
+    ILLEGAL_CHARACTERS_RE = re.compile(r'[\000-\010]|[\013-\014]|[\016-\037]')
     if os.path.exists(filename):
         wb = load_workbook(filename=filename)
         ws = wb[symbol]
@@ -43,9 +46,15 @@ def save_message(symbol, messages):
         row = 1
     for i, msg in zip(range(row + 1, row + 1 + len(messages)), messages):
         ws.cell(row=i, column=1, value=msg['id'])
-        ws.cell(row=i, column=2, value=msg['body'])
+        try:
+            ws.cell(row=i, column=2, value=msg['body'])
+        except:
+            ws.cell(row=i, column=2, value=ILLEGAL_CHARACTERS_RE.sub(r'', msg["body"]))
         ws.cell(row=i, column=3, value=msg['created_at'])
-        ws.cell(row=i, column=4, value=msg['context'])
+        try:
+            ws.cell(row=i, column=4, value=msg['context'])
+        except:
+            ws.cell(row=i, column=4, value=ILLEGAL_CHARACTERS_RE.sub(r'',msg['context']))
         ws.cell(row=i, column=5, value=msg['symbols'])
         ws.cell(row=i, column=6, value=msg['sentiment'])
         ws.cell(row=i, column=7, value=msg['likes_count'])
@@ -66,6 +75,7 @@ def save_message(symbol, messages):
 
 def parse_message(symbol, messages):
     print 'parse %d messages' % len(messages)
+
     for i, msg in enumerate(messages):
         #print msg
 
@@ -132,14 +142,16 @@ def parse_message(symbol, messages):
     return msg["id"]   # return the last id, for next crawling
 
 
-def get_messages(symbol):
+def get_messages(symbol, max_epoch, start_id = None):
     url = 'https://api.stocktwits.com/api/2/streams/symbol/' + symbol + '.json?filter=top&max'
+    if id is not None:
+        url += "=" + str(start_id)
     hdr = {'User-Agent': 'Mozilla/5.0'}
     print 'Request url =', url
     req = urllib2.Request(url, headers=hdr)
     html = urllib2.urlopen(req).read()
     start = time.time()
-    for i in range(1000):
+    for i in range(max_epoch):
         try:
             js = json.loads(str(html))
         except:
@@ -158,4 +170,17 @@ def get_messages(symbol):
     print 'time spend = ', time.time() - start
 
 
-get_messages('AAPL')
+parser = argparse.ArgumentParser(description='StockTwits Crawler')
+parser.add_argument('--symbol', default='', type=str, help='stock symbol')
+parser.add_argument('--max_epoch', default=3000, type=int, help='#pages to parse')
+args = parser.parse_args()
+symbol = args.symbol
+start_id = None
+filename = 'messages/' + symbol + '.xlsx'
+if os.path.exists(filename):
+    wb = load_workbook(filename=filename)
+    ws = wb[symbol]
+    row = ws.max_row
+    start_id = int(ws['A'+str(row)].value)
+print '%s start id = %d' % (symbol, start_id)
+get_messages(symbol, args.max_epoch, start_id=start_id)
