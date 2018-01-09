@@ -182,5 +182,5 @@ if os.path.exists(filename):
     ws = wb[symbol]
     row = ws.max_row
     start_id = int(ws['A'+str(row)].value)
-print '%s start id = %d' % (symbol, start_id)
+print symbol, ' start id =', start_id
 get_messages(symbol, args.max_epoch, start_id=start_id)

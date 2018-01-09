@@ -1,10 +1,10 @@
-import os
+import os, string
 from openpyxl.reader.excel import load_workbook
 from openpyxl.workbook import Workbook
 
-def compare_datasets(old_dir = 'original_dataset/', new_dir = 'single_symbol_dataset/'):
+def compare_datasets(old_dir = 'single_symbol_dataset/', new_dir = 'keyword_dataset/'):
     if os.path.exists(old_dir):
-        files = [f for f in os.listdir(old_dir) if f.endswith('.xlsx')]
+        files = [f for f in os.listdir(old_dir) if f.endswith('.xlsx') and f[0] in string.ascii_letters]
     num_list = "File\tBefore\tAfter\n"
     before = 0
     after = 0
@@ -24,7 +24,8 @@ def compare_datasets(old_dir = 'original_dataset/', new_dir = 'single_symbol_dat
 
     num_list += 'Total\t' + str(before) + '\t' + str(after) + '\n'
     print 'before = ', before, 'after = ', after
-    with open('statistic.txt','w') as f:
+    save_file = old_dir[:old_dir.find("_")] + "_" + new_dir[:new_dir.find("_")] + "_statistic.txt"
+    with open(save_file,'w') as f:
         f.write(num_list)
 
 def copy_row(ws, tgt_ws, row):
@@ -35,19 +36,19 @@ def copy_row(ws, tgt_ws, row):
         tgt_row = tgt_ws.max_row+1
     col_dict = {1:'A', 2:'B', 3:'C',4:'D', 5:'E', 6:'F', 7: 'G', 8:'H', 9:'I', 10:'J',11:'K',12:'L',13:'M',14:'N',15:'O',16:'P',17:'Q',
                 18:'R',19:'S',20:'T',21:'U',22:'V',23:'W',24:'X',25:'Y',26:'Z'}
-    print 'tgt row = ', tgt_row
+    #print 'tgt row = ', tgt_row
     for j in range(1, col+1):
         tgt_ws.cell(row=tgt_row, column=j, value=ws[col_dict[j]+str(row)].value)
 
 
 def keywords_selection(old_dir = 'single_symbol_dataset/', new_dir = 'sample/'):
     if os.path.exists(old_dir):
-        files = [f for f in os.listdir(old_dir) if f.endswith('.xlsx')]
+        files = [f for f in os.listdir(old_dir) if f.endswith('.xlsx') and f[0] in string.ascii_letters]
     keywords = ['would','will','buy','sell','keep','hold','up','down','predict','expect']
     for f in files:
         wb = load_workbook(filename=old_dir + f)
         ws = wb.get_active_sheet()
-        row = 21#ws.max_row
+        row = ws.max_row
 
         tgt_wb = Workbook()
         tgt_ws = tgt_wb.active
@@ -61,10 +62,12 @@ def keywords_selection(old_dir = 'single_symbol_dataset/', new_dir = 'sample/'):
             for key in keywords:
                 if msg.find(key) >= 0:
                     flag = True
+                    break
             if flag:
                 copy_row(ws, tgt_ws, i)
 
         tgt_wb.save(new_dir+f)
 
 
-keywords_selection()
+compare_datasets()
+#keywords_selection()
